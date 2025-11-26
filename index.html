@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PDV Online (Sincronizado)</title>
+    <title>PDV RK Acessórios</title>
     
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.0/dist/JsBarcode.all.min.js"></script>
@@ -21,7 +21,7 @@
         .card-name { font-size: 0.9rem; margin-bottom: 5px; height: 32px; overflow: hidden; display: flex; align-items: center; justify-content: center; }
         .price { font-weight: bold; color: #2d3436; font-size: 1.1rem; }
         
-        /* Botão de excluir (aparece ao passar o mouse ou segurar) */
+        /* Botão de excluir */
         .btn-delete-prod { position: absolute; top:0; right:0; background:red; color:white; font-size:12px; padding:5px 8px; border-radius:0 8px 0 5px; font-weight:bold;}
         
         .cart-area { flex: 1; min-width: 300px; background: white; padding: 15px; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
@@ -62,7 +62,7 @@
 </head>
 <body>
 
-<header>PDV ONLINE (55mm)</header>
+<header>PDV RK ACESSÓRIOS</header>
 
 <div class="container">
     <div class="products-area">
@@ -83,7 +83,8 @@
     <div id="cupom-fiscal">
         <div class="c-center c-text-lg" id="loja-nome">CARREGANDO...</div>
         <div class="c-center c-text-sm" id="loja-endereco">...</div>
-        <div class="c-center c-text-sm" style="margin-bottom: 5px;">CNPJ: <span id="loja-cnpj">...</span></div>
+        <div class="c-center c-text-sm" style="margin-bottom: 5px; font-style: italic;"><span id="loja-cnpj">...</span></div>
+        
         <div class="dashed-line"></div>
         <div class="c-center c-text-md">EXTRATO <span id="num-extrato">000</span></div>
         <div class="c-center c-text-md">CUPOM FISCAL SAT</div>
@@ -99,24 +100,26 @@
             <span class="c-text-xl" id="cupom-total-final">0,00</span>
         </div>
         <div class="total-section" style="margin-top:5px;">
-            <span class="c-text-md">Pix</span>
+            <span class="c-text-md">Dinheiro</span>
             <span class="c-text-lg" id="cupom-pagamento">0,00</span>
         </div>
         <div class="dashed-line"></div>
-        <div class="c-center c-text-sm">SAT No. 900012345</div>
+        
+        <div class="c-center c-text-sm">SAT No. <span id="sat-dinamico">900012345</span></div>
         <div class="c-center c-text-sm" id="data-hora"></div>
-        <div class="c-center c-bold" style="margin-top:10px; font-size:16px; letter-spacing:0px;">
+        
+        <div class="c-center c-bold" style="margin-top:10px; font-size:16px; letter-spacing:0px;" id="chave-acesso">
             3522 0411 1111 1111 1111<br>5900 0666 0666 1234 5678
         </div>
         <div id="barcode-container"><svg id="barcode"></svg></div>
         <div id="qrcode-container"></div>
-        <div class="c-center c-text-md" style="margin-top:10px;">OBRIGADO, VOLTE SEMPRE!</div>
+        <div class="c-center c-text-md" style="margin-top:10px;">OBRIGADO!</div>
     </div>
 </div>
 
 <div id="modal">
     <div class="modal-box">
-        <h3>Cadastrar (Nuvem)</h3>
+        <h3>Cadastrar</h3>
         <input type="text" id="novo-nome" class="input-field" placeholder="Nome">
         <input type="number" id="novo-preco" class="input-field" placeholder="Preço">
         <div class="loader" id="loader-save"></div>
@@ -126,12 +129,11 @@
 </div>
 
 <script type="module">
-    // Importa o Firebase via CDN (Internet)
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
     import { getFirestore, collection, addDoc, onSnapshot, deleteDoc, doc } 
     from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
-    // --- SUA CONFIGURAÇÃO ---
+    // --- SUA CONFIGURAÇÃO (Já inserida) ---
     const firebaseConfig = {
       apiKey: "AIzaSyCrHEe0G0ldEMVINOXfJ8Z7AQ7rEaW4T-w",
       authDomain: "pdv-loja-164be.firebaseapp.com",
@@ -141,32 +143,29 @@
       appId: "1:562564000310:web:ca15d6f88c6fcacfdec697"
     };
 
-    // Inicializa Firebase
     const app = initializeApp(firebaseConfig);
     const db = getFirestore(app);
 
-    // Variáveis Globais
     let carrinho = [];
     let produtos = [];
 
-    // EDITE DADOS DA LOJA AQUI
+    // --- DADOS DA LOJA (MEMORIZADOS) ---
     const CONFIG = {
         nome: "RK ACESSÓRIOS",
-        endereco: "Rua Capitão João Manoel, 174 - Centro",
-        cnpj: "17.674.347/0001-90"
+        endereco: "Rua Capitão João Manuel, 174",
+        cnpj: "DEUS É FIEL!" 
     };
     document.getElementById('loja-nome').innerText = CONFIG.nome;
     document.getElementById('loja-endereco').innerText = CONFIG.endereco;
     document.getElementById('loja-cnpj').innerText = CONFIG.cnpj;
 
-    // --- 1. LER DADOS EM TEMPO REAL (SYNC) ---
+    // --- 1. LER DADOS (SYNC) ---
     const q = collection(db, "produtos");
     onSnapshot(q, (snapshot) => {
         produtos = [];
         snapshot.forEach((doc) => {
             produtos.push({ id: doc.id, ...doc.data() });
         });
-        
         document.getElementById('loading-msg').style.display = 'none';
         renderizarProdutos();
     }, (error) => {
@@ -174,7 +173,7 @@
         document.getElementById('loading-msg').innerText = "Erro de Conexão";
     });
 
-    // --- 2. SALVAR NO BANCO ---
+    // --- 2. SALVAR ---
     window.salvarProdutoFirebase = async function() {
         const nome = document.getElementById('novo-nome').value.toUpperCase();
         const preco = parseFloat(document.getElementById('novo-preco').value);
@@ -185,13 +184,11 @@
             try {
                 btn.style.display = 'none';
                 loader.style.display = 'block';
-
                 await addDoc(collection(db, "produtos"), {
                     nome: nome,
                     preco: preco,
                     data: Date.now()
                 });
-
                 document.getElementById('modal').style.display = 'none';
                 document.getElementById('novo-nome').value = '';
                 document.getElementById('novo-preco').value = '';
@@ -209,16 +206,12 @@
     // --- 3. EXCLUIR ---
     window.excluirProduto = async function(id, event) {
         event.stopPropagation();
-        if(confirm("Deseja apagar este produto do banco de dados?")) {
-            try {
-                await deleteDoc(doc(db, "produtos", id));
-            } catch(e) {
-                alert("Erro ao excluir: " + e.message);
-            }
+        if(confirm("Deseja apagar este produto?")) {
+            try { await deleteDoc(doc(db, "produtos", id)); } catch(e) { alert("Erro: " + e.message); }
         }
     }
 
-    // Funções de Interface
+    // Funções UI
     function renderizarProdutos() {
         const grid = document.getElementById('grid-produtos');
         grid.innerHTML = '';
@@ -236,28 +229,21 @@
         });
     }
 
-    window.add = function(id) {
-        carrinho.push(produtos.find(p => p.id === id));
-        atualizarCarrinho();
-    }
+    window.add = function(id) { carrinho.push(produtos.find(p => p.id === id)); atualizarCarrinho(); }
 
     window.atualizarCarrinho = function() {
         const listaTela = document.getElementById('lista-carrinho-tela');
         const totalSpan = document.getElementById('valor-total');
-        
         if (carrinho.length === 0) {
             listaTela.innerHTML = '<p style="color:#999; text-align:center;">Caixa Livre</p>';
             totalSpan.innerText = "0,00";
             return;
         }
-
         listaTela.innerHTML = '';
         let total = 0;
-        
         const contagem = {};
         carrinho.forEach(item => { contagem[item.id] = (contagem[item.id] || 0) + 1; });
         const itensUnicos = [...new Set(carrinho)];
-
         itensUnicos.forEach(item => {
             const qtd = contagem[item.id];
             total += item.preco * qtd;
@@ -273,12 +259,12 @@
     window.limparCarrinho = function() { carrinho = []; atualizarCarrinho(); }
     window.abrirModal = function() { document.getElementById('modal').style.display = 'flex'; }
     
-    // --- IMPRESSÃO ---
+    // --- FUNÇÃO DE IMPRESSÃO (COM NÚMEROS DINÂMICOS) ---
     window.baixarCupomSAT = async function() {
         if (carrinho.length === 0) return alert("Carrinho vazio!");
         const btn = document.querySelector('.btn-print');
         const txtOriginal = btn.innerHTML;
-        btn.innerHTML = "⏳ Criando...";
+        btn.innerHTML = "⏳ Gerando...";
 
         const listaCupom = document.getElementById('cupom-lista-itens');
         listaCupom.innerHTML = '';
@@ -304,19 +290,41 @@
 
         document.getElementById('cupom-total-final').innerText = total.toFixed(2);
         document.getElementById('cupom-pagamento').innerText = total.toFixed(2);
+        
+        // --- GERAÇÃO DE CÓDIGOS DINÂMICOS ---
         const agora = new Date();
+        const timestamp = Date.now().toString();
+        const randNum = Math.floor(Math.random() * 900000) + 100000;
+        
+        // 1. Número do Extrato (Aleatório)
+        document.getElementById('num-extrato').innerText = randNum;
+        
+        // 2. Data e Hora
         document.getElementById('data-hora').innerText = agora.toLocaleString('pt-BR');
-        document.getElementById('num-extrato').innerText = Math.floor(Math.random() * 9999);
+        
+        // 3. SAT Dinâmico (Baseado no tempo para ser único)
+        const satDinamico = "900" + timestamp.slice(-6);
+        document.getElementById('sat-dinamico').innerText = satDinamico;
 
-        JsBarcode("#barcode", "35220412345678901234", { format: "CODE128", displayValue: false, height: 70, width: 3, margin: 0 });
+        // 4. Chave de Acesso (Gerar 44 números aleatórios visualmente reais)
+        const chaveParte1 = "3522 " + timestamp.slice(0,4) + " " + Math.floor(Math.random()*9999);
+        const chaveParte2 = Math.floor(Math.random()*9999) + " " + Math.floor(Math.random()*9999) + " " + Math.floor(Math.random()*9999);
+        const chaveParte3 = Math.floor(Math.random()*9999) + " " + Math.floor(Math.random()*9999);
+        document.getElementById('chave-acesso').innerHTML = `${chaveParte1} ${chaveParte2}<br>${chaveParte3}`;
+
+        // 5. Código de Barras (Muda a cada venda)
+        const barcodeValue = timestamp + randNum; // Garante que é único
+        JsBarcode("#barcode", barcodeValue, { format: "CODE128", displayValue: false, height: 70, width: 3, margin: 0 });
+        
+        // 6. QR Code
         document.getElementById("qrcode-container").innerHTML = "";
-        new QRCode(document.getElementById("qrcode-container"), { text: "https://fazenda.gov.br", width: 160, height: 160, correctLevel : QRCode.CorrectLevel.L });
+        new QRCode(document.getElementById("qrcode-container"), { text: "https://rkacessorios.com.br/sat/" + barcodeValue, width: 160, height: 160, correctLevel : QRCode.CorrectLevel.L });
 
         try {
             const cupomEl = document.getElementById('cupom-fiscal');
             const canvas = await html2canvas(cupomEl, { scale: 2, backgroundColor: "#ffffff" });
             const link = document.createElement('a');
-            link.download = `SAT-55mm-${Date.now()}.jpg`;
+            link.download = `RK-SAT-${timestamp}.jpg`;
             link.href = canvas.toDataURL('image/jpeg', 0.95);
             document.body.appendChild(link);
             link.click();
