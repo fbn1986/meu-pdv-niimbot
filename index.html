@@ -15,6 +15,11 @@
         
         .container { display: flex; flex-wrap: wrap; padding: 10px; gap: 10px; justify-content: center; }
         .products-area { flex: 2; min-width: 300px; max-width: 600px; }
+        
+        /* BARRA DE PESQUISA (NOVO) */
+        .search-container { margin-bottom: 15px; position: relative; }
+        .search-input { width: 100%; padding: 15px; border-radius: 8px; border: 1px solid #ccc; font-size: 1.1rem; box-sizing: border-box; }
+        
         .product-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); gap: 10px; }
         
         /* CARD DO PRODUTO */
@@ -23,7 +28,7 @@
         .card-name { font-size: 0.9rem; margin-bottom: 5px; height: 32px; overflow: hidden; display: flex; align-items: center; justify-content: center; }
         .price { font-weight: bold; color: #2d3436; font-size: 1.1rem; }
         
-        /* BOTÕES DE AÇÃO NO CARD */
+        /* AÇÕES */
         .btn-card-action { position: absolute; top:0; font-size:12px; padding:6px 10px; font-weight:bold; color:white; z-index: 10; }
         .btn-delete-prod { right:0; background:#ff4757; border-radius:0 8px 0 10px; }
         .btn-edit-prod { left:0; background:#3742fa; border-radius:8px 0 10px 0; }
@@ -31,6 +36,9 @@
         /* ÁREA CARRINHO */
         .cart-area { flex: 1; min-width: 300px; background: white; padding: 15px; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
         .total { font-size: 1.8rem; font-weight: bold; margin: 15px 0; text-align: right; color: #2d3436; border-top: 2px dashed #b2bec3; padding-top: 10px;}
+        
+        /* SELETOR DE PAGAMENTO (NOVO) */
+        .payment-select { width: 100%; padding: 12px; margin-top: 10px; border-radius: 6px; border: 2px solid #00b894; font-size: 1rem; font-weight: bold; background: white; color: #2d3436; }
         
         button { cursor: pointer; border: none; padding: 15px; border-radius: 6px; width: 100%; margin-top: 8px; font-weight: bold; font-size: 1rem; text-transform: uppercase; }
         .btn-add { background: #0984e3; color: white; margin-bottom: 15px; }
@@ -73,13 +81,27 @@
 <div class="container">
     <div class="products-area">
         <button class="btn-add" onclick="abrirModalCadastro()">+ Novo Produto</button>
-        <div id="loading-msg" style="text-align:center; margin-top:20px;">Conectando ao banco...</div>
+        
+        <div class="search-container">
+            <input type="text" id="input-busca" class="search-input" placeholder="🔍 Buscar produto..." onkeyup="filtrarProdutos()">
+        </div>
+
+        <div id="loading-msg" style="text-align:center;">Conectando ao banco...</div>
         <div id="grid-produtos" class="product-grid"></div>
     </div>
 
     <div class="cart-area">
         <div id="lista-carrinho-tela"><p style="color:#999; text-align:center;">Caixa Livre</p></div>
         <div class="total">R$ <span id="valor-total">0,00</span></div>
+        
+        <label style="font-size: 12px; font-weight: bold; color: #555;">FORMA DE PAGAMENTO:</label>
+        <select id="select-pagamento" class="payment-select">
+            <option value="DINHEIRO">💵 DINHEIRO</option>
+            <option value="PIX">💠 PIX</option>
+            <option value="CARTÃO DÉBITO">💳 DÉBITO</option>
+            <option value="CARTÃO CRÉDITO">💳 CRÉDITO</option>
+        </select>
+
         <button class="btn-print" onclick="baixarCupomSAT()">IMPRIMIR (55mm)</button>
         <button class="btn-clear" onclick="limparCarrinho()">Limpar</button>
     </div>
@@ -106,7 +128,7 @@
             <span class="c-text-xl" id="cupom-total-final">0,00</span>
         </div>
         <div class="total-section" style="margin-top:5px;">
-            <span class="c-text-md">Dinheiro</span>
+            <span class="c-text-md" id="txt-pagamento-cupom">Dinheiro</span>
             <span class="c-text-lg" id="cupom-pagamento">0,00</span>
         </div>
         <div class="dashed-line"></div>
@@ -136,7 +158,7 @@
     import { getFirestore, collection, addDoc, updateDoc, deleteDoc, onSnapshot, doc } 
     from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
-    // --- CONFIGURAÇÃO FIREBASE (JÁ INCLUSA) ---
+    // --- CONFIGURAÇÃO FIREBASE (SUA) ---
     const firebaseConfig = {
       apiKey: "AIzaSyCrHEe0G0ldEMVINOXfJ8Z7AQ7rEaW4T-w",
       authDomain: "pdv-loja-164be.firebaseapp.com",
@@ -150,8 +172,8 @@
     const db = getFirestore(app);
 
     let carrinho = [];
-    let produtos = [];
-    let produtoEmEdicaoId = null; // Controla se estamos editando ou criando
+    let produtos = []; // Lista completa
+    let produtoEmEdicaoId = null;
 
     // --- DADOS DA LOJA ---
     const CONFIG = {
@@ -163,7 +185,7 @@
     document.getElementById('loja-endereco').innerText = CONFIG.endereco;
     document.getElementById('loja-cnpj').innerText = CONFIG.cnpj;
 
-    // --- 1. LER DADOS (SYNC) ---
+    // --- 1. LER DADOS ---
     const q = collection(db, "produtos");
     onSnapshot(q, (snapshot) => {
         produtos = [];
@@ -171,14 +193,49 @@
             produtos.push({ id: doc.id, ...doc.data() });
         });
         document.getElementById('loading-msg').style.display = 'none';
-        renderizarProdutos();
+        
+        // Renderiza lista completa ao carregar
+        filtrarProdutos(); 
     }, (error) => {
         alert("Erro Conexão: " + error.message);
     });
 
-    // --- 2. PREPARAR MODAL ---
+    // --- FUNÇÃO DE FILTRO (BUSCA) ---
+    window.filtrarProdutos = function() {
+        const termo = document.getElementById('input-busca').value.toLowerCase();
+        
+        // Filtra a lista global 'produtos'
+        const filtrados = produtos.filter(p => 
+            p.nome.toLowerCase().includes(termo)
+        );
+        
+        renderizarGrid(filtrados);
+    }
+
+    // --- RENDERIZAR GRID (RECEBE LISTA) ---
+    function renderizarGrid(lista) {
+        const grid = document.getElementById('grid-produtos');
+        grid.innerHTML = '';
+        
+        if(lista.length === 0) {
+            grid.innerHTML = '<p style="width:100%; text-align:center;">Nenhum produto encontrado.</p>';
+            return;
+        }
+
+        lista.forEach(p => {
+            grid.innerHTML += `
+                <div class="card" onclick="add('${p.id}')">
+                    <div class="btn-card-action btn-edit-prod" onclick="abrirModalEdicao('${p.id}', event)">✏️</div>
+                    <div class="btn-card-action btn-delete-prod" onclick="excluirProduto('${p.id}', event)">X</div>
+                    <div class="card-name"><b>${p.nome}</b></div>
+                    <div class="price">R$ ${p.preco.toFixed(2)}</div>
+                </div>`;
+        });
+    }
+
+    // --- CRUD ---
     window.abrirModalCadastro = function() {
-        produtoEmEdicaoId = null; // Modo Criar
+        produtoEmEdicaoId = null; 
         document.getElementById('modal-titulo').innerText = "Novo Produto";
         document.getElementById('btn-save').innerText = "CADASTRAR";
         document.getElementById('novo-nome').value = "";
@@ -187,10 +244,10 @@
     }
 
     window.abrirModalEdicao = function(id, event) {
-        event.stopPropagation(); // Não adiciona ao carrinho
+        event.stopPropagation(); 
         const prod = produtos.find(p => p.id === id);
         if(prod) {
-            produtoEmEdicaoId = id; // Modo Editar
+            produtoEmEdicaoId = id; 
             document.getElementById('modal-titulo').innerText = "Editar Produto";
             document.getElementById('btn-save').innerText = "ATUALIZAR PREÇO";
             document.getElementById('novo-nome').value = prod.nome;
@@ -199,7 +256,6 @@
         }
     }
 
-    // --- 3. SALVAR (CRIAR OU ATUALIZAR) ---
     window.salvarProdutoFirebase = async function() {
         const nome = document.getElementById('novo-nome').value.toUpperCase();
         const preco = parseFloat(document.getElementById('novo-preco').value);
@@ -212,22 +268,14 @@
                 loader.style.display = 'block';
 
                 if(produtoEmEdicaoId) {
-                    // ATUALIZAR EXISTENTE
                     const produtoRef = doc(db, "produtos", produtoEmEdicaoId);
-                    await updateDoc(produtoRef, {
-                        nome: nome,
-                        preco: preco
-                    });
+                    await updateDoc(produtoRef, { nome: nome, preco: preco });
                 } else {
-                    // CRIAR NOVO
-                    await addDoc(collection(db, "produtos"), {
-                        nome: nome,
-                        preco: preco,
-                        data: Date.now()
-                    });
+                    await addDoc(collection(db, "produtos"), { nome: nome, preco: preco, data: Date.now() });
                 }
-
                 document.getElementById('modal').style.display = 'none';
+                // Limpa busca ao salvar
+                document.getElementById('input-busca').value = '';
             } catch (e) {
                 alert("Erro: " + e.message);
             } finally {
@@ -239,7 +287,6 @@
         }
     }
 
-    // --- 4. EXCLUIR ---
     window.excluirProduto = async function(id, event) {
         event.stopPropagation();
         if(confirm("Deseja apagar este produto?")) {
@@ -247,26 +294,13 @@
         }
     }
 
-    // Funções UI
-    function renderizarProdutos() {
-        const grid = document.getElementById('grid-produtos');
-        grid.innerHTML = '';
-        if(produtos.length === 0) {
-            grid.innerHTML = '<p style="width:100%; text-align:center;">Estoque vazio.</p>';
-            return;
-        }
-        produtos.forEach(p => {
-            grid.innerHTML += `
-                <div class="card" onclick="add('${p.id}')">
-                    <div class="btn-card-action btn-edit-prod" onclick="abrirModalEdicao('${p.id}', event)">✏️</div>
-                    <div class="btn-card-action btn-delete-prod" onclick="excluirProduto('${p.id}', event)">X</div>
-                    <div class="card-name"><b>${p.nome}</b></div>
-                    <div class="price">R$ ${p.preco.toFixed(2)}</div>
-                </div>`;
-        });
+    window.add = function(id) { 
+        carrinho.push(produtos.find(p => p.id === id)); 
+        atualizarCarrinho(); 
+        // Limpa busca ao adicionar para facilitar próxima venda
+        document.getElementById('input-busca').value = '';
+        filtrarProdutos(); 
     }
-
-    window.add = function(id) { carrinho.push(produtos.find(p => p.id === id)); atualizarCarrinho(); }
 
     window.atualizarCarrinho = function() {
         const listaTela = document.getElementById('lista-carrinho-tela');
@@ -295,12 +329,16 @@
 
     window.limparCarrinho = function() { carrinho = []; atualizarCarrinho(); }
     
-    // --- FUNÇÃO DE IMPRESSÃO (DINÂMICA) ---
+    // --- IMPRESSÃO (PAGAMENTO + CÓDIGOS) ---
     window.baixarCupomSAT = async function() {
         if (carrinho.length === 0) return alert("Carrinho vazio!");
         const btn = document.querySelector('.btn-print');
         const txtOriginal = btn.innerHTML;
         btn.innerHTML = "⏳ Gerando...";
+
+        // 1. Pega forma de pagamento
+        const formaPagamento = document.getElementById('select-pagamento').value;
+        document.getElementById('txt-pagamento-cupom').innerText = formaPagamento;
 
         const listaCupom = document.getElementById('cupom-lista-itens');
         listaCupom.innerHTML = '';
