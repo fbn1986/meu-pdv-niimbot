@@ -3,25 +3,26 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PDV Pro (55mm)</title>
+    <title>PDV Online (Sincronizado)</title>
     
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.0/dist/JsBarcode.all.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 
     <style>
-        /* --- ESTILOS DE TELA (Operação) --- */
         body { font-family: sans-serif; margin: 0; padding: 0; background: #dfe6e9; }
-        header { background: #2d3436; color: white; padding: 15px; text-align: center; font-weight: bold; }
+        header { background: #d63031; color: white; padding: 15px; text-align: center; font-weight: bold; }
         
         .container { display: flex; flex-wrap: wrap; padding: 10px; gap: 10px; justify-content: center; }
-        
         .products-area { flex: 2; min-width: 300px; max-width: 600px; }
         .product-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); gap: 10px; }
-        .card { background: white; padding: 15px; border-radius: 8px; text-align: center; cursor: pointer; border-bottom: 3px solid #b2bec3; }
+        .card { background: white; padding: 15px; border-radius: 8px; text-align: center; cursor: pointer; border-bottom: 3px solid #b2bec3; position: relative;}
         .card:active { transform: scale(0.98); border-bottom: 1px solid #b2bec3; }
         .card-name { font-size: 0.9rem; margin-bottom: 5px; height: 32px; overflow: hidden; display: flex; align-items: center; justify-content: center; }
         .price { font-weight: bold; color: #2d3436; font-size: 1.1rem; }
+        
+        /* Botão de excluir (aparece ao passar o mouse ou segurar) */
+        .btn-delete-prod { position: absolute; top:0; right:0; background:red; color:white; font-size:12px; padding:5px 8px; border-radius:0 8px 0 5px; font-weight:bold;}
         
         .cart-area { flex: 1; min-width: 300px; background: white; padding: 15px; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
         .total { font-size: 1.8rem; font-weight: bold; margin: 15px 0; text-align: right; color: #2d3436; border-top: 2px dashed #b2bec3; padding-top: 10px;}
@@ -29,81 +30,44 @@
         button { cursor: pointer; border: none; padding: 15px; border-radius: 6px; width: 100%; margin-top: 8px; font-weight: bold; font-size: 1rem; text-transform: uppercase; }
         .btn-add { background: #0984e3; color: white; margin-bottom: 15px; }
         .btn-print { background: #00b894; color: white; box-shadow: 0 4px 0 #008f72; display: flex; align-items: center; justify-content: center; gap: 10px; font-size: 1.2rem; }
-        .btn-print:active { transform: translateY(2px); box-shadow: 0 2px 0 #008f72; }
         .btn-clear { background: #fab1a0; color: #d63031; font-size: 0.8rem; padding: 10px; }
 
-        /* --- O CUPOM PERFEITO (55mm) --- */
+        /* CUPOM 55mm */
         #cupom-container { position: fixed; top: -9999px; left: -9999px; }
-        
         #cupom-fiscal {
-            /* 384px é a largura de impressão padrão de cabeças de 55mm/58mm */
-            width: 384px; 
-            background: white;
-            color: #000;
-            /* Fonte Narrow/Condensed para caber mais texto grande */
+            width: 384px; background: white; color: #000;
             font-family: 'Arial Narrow', 'Roboto Condensed', sans-serif; 
-            padding: 5px 10px; /* Margem lateral segura */
-            box-sizing: border-box;
-            border: 1px solid #ccc;
-            text-transform: uppercase;
+            padding: 5px 10px; box-sizing: border-box; border: 1px solid #ccc; text-transform: uppercase;
         }
-
-        /* Tipografia de Alto Contraste para Térmica */
         .c-center { text-align: center; }
         .c-bold { font-weight: 900; } 
-        
         .c-text-sm { font-size: 18px; font-weight: 600; letter-spacing: -0.5px; } 
         .c-text-md { font-size: 22px; font-weight: 700; letter-spacing: -0.5px; } 
         .c-text-lg { font-size: 26px; font-weight: 900; } 
         .c-text-xl { font-size: 42px; font-weight: 900; letter-spacing: -1px; }
-
-        .dashed-line { 
-            border-top: 3px dashed #000; 
-            margin: 15px 0; 
-            width: 100%;
-        }
-
-        /* Layout de Itens Vertical */
-        .item-row { 
-            margin-bottom: 12px; 
-            border-bottom: 1px solid #000; /* Linha sólida fina para separar itens */
-            padding-bottom: 5px;
-        }
-        
-        .item-desc { 
-            font-size: 24px; 
-            font-weight: 900;
-            text-align: left; 
-            margin-bottom: 2px;
-            line-height: 1.1;
-        }
-        
-        .item-vals { 
-            display: flex; 
-            justify-content: space-between; 
-            font-size: 22px; 
-            font-weight: bold;
-            color: #000;
-        }
-
+        .dashed-line { border-top: 3px dashed #000; margin: 15px 0; width: 100%; }
+        .item-row { margin-bottom: 12px; border-bottom: 1px solid #000; padding-bottom: 5px; }
+        .item-desc { font-size: 24px; font-weight: 900; text-align: left; margin-bottom: 2px; line-height: 1.1; }
+        .item-vals { display: flex; justify-content: space-between; font-size: 22px; font-weight: bold; color: #000; }
         .total-section { display: flex; justify-content: space-between; align-items: flex-end; margin-top: 5px; }
-
         #barcode-container { margin: 20px 0; text-align: center; }
         #qrcode-container { display: flex; justify-content: center; margin-top: 15px; padding: 10px; background: white; }
         
-        /* Modal */
         #modal { display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:1000; align-items:center; justify-content:center; }
         .modal-box { background:white; padding:20px; border-radius:10px; width:90%; max-width:320px; }
         .input-field { width:90%; padding:15px; margin:8px 0; border:1px solid #ddd; border-radius:6px; font-size: 1.1rem; }
+        .loader { border: 4px solid #f3f3f3; border-top: 4px solid #3498db; border-radius: 50%; width: 20px; height: 20px; animation: spin 1s linear infinite; margin: 0 auto; display:none;}
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
     </style>
 </head>
 <body>
 
-<header>PDV 55mm</header>
+<header>PDV ONLINE (55mm)</header>
 
 <div class="container">
     <div class="products-area">
-        <button class="btn-add" onclick="abrirModal()">+ Produto</button>
+        <button class="btn-add" onclick="abrirModal()">+ Novo Produto</button>
+        <div id="loading-msg" style="text-align:center; margin-top:20px;">Conectando ao banco...</div>
         <div id="grid-produtos" class="product-grid"></div>
     </div>
 
@@ -117,105 +81,167 @@
 
 <div id="cupom-container">
     <div id="cupom-fiscal">
-        
-        <div class="c-center c-text-lg" id="loja-nome">NOME DA LOJA</div>
-        <div class="c-center c-text-sm" id="loja-endereco">Endereço da Loja, 000</div>
-        <div class="c-center c-text-sm" style="margin-bottom: 5px;">CNPJ: <span id="loja-cnpj">00.000.000/0001-00</span></div>
-        
+        <div class="c-center c-text-lg" id="loja-nome">CARREGANDO...</div>
+        <div class="c-center c-text-sm" id="loja-endereco">...</div>
+        <div class="c-center c-text-sm" style="margin-bottom: 5px;">CNPJ: <span id="loja-cnpj">...</span></div>
         <div class="dashed-line"></div>
-        
         <div class="c-center c-text-md">EXTRATO <span id="num-extrato">000</span></div>
         <div class="c-center c-text-md">CUPOM FISCAL SAT</div>
-        
         <div class="dashed-line"></div>
-
         <div style="display:flex; justify-content:space-between; margin-bottom:5px; border-bottom: 2px solid black;">
             <span class="c-text-sm">ITEM</span>
             <span class="c-text-sm">VALOR</span>
         </div>
-
         <div id="cupom-lista-itens"></div>
-
         <div class="dashed-line"></div>
-
         <div class="total-section">
             <span class="c-text-lg">TOTAL R$</span>
             <span class="c-text-xl" id="cupom-total-final">0,00</span>
         </div>
-        
         <div class="total-section" style="margin-top:5px;">
-            <span class="c-text-md">Pix</span>
+            <span class="c-text-md">Dinheiro</span>
             <span class="c-text-lg" id="cupom-pagamento">0,00</span>
         </div>
-
         <div class="dashed-line"></div>
-
         <div class="c-center c-text-sm">SAT No. 900012345</div>
         <div class="c-center c-text-sm" id="data-hora"></div>
-        
         <div class="c-center c-bold" style="margin-top:10px; font-size:16px; letter-spacing:0px;">
             3522 0411 1111 1111 1111<br>5900 0666 0666 1234 5678
         </div>
-
-        <div id="barcode-container">
-            <svg id="barcode"></svg>
-        </div>
-
+        <div id="barcode-container"><svg id="barcode"></svg></div>
         <div id="qrcode-container"></div>
-        
         <div class="c-center c-text-md" style="margin-top:10px;">OBRIGADO!</div>
     </div>
 </div>
 
 <div id="modal">
     <div class="modal-box">
-        <h3>Cadastrar</h3>
+        <h3>Cadastrar (Nuvem)</h3>
         <input type="text" id="novo-nome" class="input-field" placeholder="Nome">
         <input type="number" id="novo-preco" class="input-field" placeholder="Preço">
-        <button class="btn-add" onclick="salvarProduto()">Salvar</button>
+        <div class="loader" id="loader-save"></div>
+        <button class="btn-add" onclick="salvarProdutoFirebase()" id="btn-save">Salvar</button>
         <button class="btn-clear" onclick="document.getElementById('modal').style.display='none'">Cancelar</button>
     </div>
 </div>
 
-<script>
-    // --- EDITE OS DADOS DA SUA LOJA AQUI ---
-    const CONFIG = {
-        nome: "RK ACESSÓRIOS",
-        endereco: "Rua Bartolomeu Costa, 123 - Centro",
-        cnpj: "17.346.876/0001-90"
+<script type="module">
+    // Importa o Firebase via CDN (Internet)
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+    import { getFirestore, collection, addDoc, onSnapshot, deleteDoc, doc } 
+    from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
+    // --- SUA CONFIGURAÇÃO ---
+    const firebaseConfig = {
+      apiKey: "AIzaSyCrHEe0G0ldEMVINOXfJ8Z7AQ7rEaW4T-w",
+      authDomain: "pdv-loja-164be.firebaseapp.com",
+      projectId: "pdv-loja-164be",
+      storageBucket: "pdv-loja-164be.firebasestorage.app",
+      messagingSenderId: "562564000310",
+      appId: "1:562564000310:web:ca15d6f88c6fcacfdec697"
     };
 
+    // Inicializa Firebase
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+
+    // Variáveis Globais
+    let carrinho = [];
+    let produtos = [];
+
+    // EDITE DADOS DA LOJA AQUI
+    const CONFIG = {
+        nome: "MINHA LOJA",
+        endereco: "Rua Exemplo, 123 - Centro",
+        cnpj: "12.345.678/0001-90"
+    };
     document.getElementById('loja-nome').innerText = CONFIG.nome;
     document.getElementById('loja-endereco').innerText = CONFIG.endereco;
     document.getElementById('loja-cnpj').innerText = CONFIG.cnpj;
 
-    // --- Lógica do Sistema ---
-    let carrinho = [];
-    let produtos = JSON.parse(localStorage.getItem('meus_produtos')) || [
-        { id: 1, nome: "CABO HDMI 2M", preco: 25.00 },
-        { id: 2, nome: "CARREGADOR TIPO C", preco: 45.00 }
-    ];
+    // --- 1. LER DADOS EM TEMPO REAL (SYNC) ---
+    const q = collection(db, "produtos");
+    onSnapshot(q, (snapshot) => {
+        produtos = [];
+        snapshot.forEach((doc) => {
+            produtos.push({ id: doc.id, ...doc.data() });
+        });
+        
+        document.getElementById('loading-msg').style.display = 'none';
+        renderizarProdutos();
+    }, (error) => {
+        alert("Erro ao conectar: " + error.message);
+        document.getElementById('loading-msg').innerText = "Erro de Conexão";
+    });
 
-    function init() { renderizarProdutos(); }
+    // --- 2. SALVAR NO BANCO ---
+    window.salvarProdutoFirebase = async function() {
+        const nome = document.getElementById('novo-nome').value.toUpperCase();
+        const preco = parseFloat(document.getElementById('novo-preco').value);
+        const btn = document.getElementById('btn-save');
+        const loader = document.getElementById('loader-save');
 
+        if(nome && preco) {
+            try {
+                btn.style.display = 'none';
+                loader.style.display = 'block';
+
+                await addDoc(collection(db, "produtos"), {
+                    nome: nome,
+                    preco: preco,
+                    data: Date.now()
+                });
+
+                document.getElementById('modal').style.display = 'none';
+                document.getElementById('novo-nome').value = '';
+                document.getElementById('novo-preco').value = '';
+            } catch (e) {
+                alert("Erro ao salvar: " + e.message);
+            } finally {
+                btn.style.display = 'block';
+                loader.style.display = 'none';
+            }
+        } else {
+            alert("Preencha nome e preço!");
+        }
+    }
+
+    // --- 3. EXCLUIR ---
+    window.excluirProduto = async function(id, event) {
+        event.stopPropagation();
+        if(confirm("Deseja apagar este produto do banco de dados?")) {
+            try {
+                await deleteDoc(doc(db, "produtos", id));
+            } catch(e) {
+                alert("Erro ao excluir: " + e.message);
+            }
+        }
+    }
+
+    // Funções de Interface
     function renderizarProdutos() {
         const grid = document.getElementById('grid-produtos');
         grid.innerHTML = '';
+        if(produtos.length === 0) {
+            grid.innerHTML = '<p style="width:100%; text-align:center;">Estoque vazio.</p>';
+            return;
+        }
         produtos.forEach(p => {
             grid.innerHTML += `
-                <div class="card" onclick="add(${p.id})">
+                <div class="card" onclick="add('${p.id}')">
+                    <div class="btn-delete-prod" onclick="excluirProduto('${p.id}', event)">X</div>
                     <div class="card-name"><b>${p.nome}</b></div>
                     <div class="price">R$ ${p.preco.toFixed(2)}</div>
                 </div>`;
         });
     }
 
-    function add(id) {
+    window.add = function(id) {
         carrinho.push(produtos.find(p => p.id === id));
         atualizarCarrinho();
     }
 
-    function atualizarCarrinho() {
+    window.atualizarCarrinho = function() {
         const listaTela = document.getElementById('lista-carrinho-tela');
         const totalSpan = document.getElementById('valor-total');
         
@@ -228,7 +254,6 @@
         listaTela.innerHTML = '';
         let total = 0;
         
-        // Agrupamento para Tela
         const contagem = {};
         carrinho.forEach(item => { contagem[item.id] = (contagem[item.id] || 0) + 1; });
         const itensUnicos = [...new Set(carrinho)];
@@ -245,21 +270,11 @@
         totalSpan.innerText = total.toFixed(2);
     }
 
-    function limparCarrinho() { carrinho = []; atualizarCarrinho(); }
-    function abrirModal() { document.getElementById('modal').style.display = 'flex'; }
+    window.limparCarrinho = function() { carrinho = []; atualizarCarrinho(); }
+    window.abrirModal = function() { document.getElementById('modal').style.display = 'flex'; }
     
-    function salvarProduto() {
-        const nome = document.getElementById('novo-nome').value.toUpperCase();
-        const preco = parseFloat(document.getElementById('novo-preco').value);
-        if(nome && preco) {
-            produtos.push({ id: Date.now(), nome, preco });
-            localStorage.setItem('meus_produtos', JSON.stringify(produtos));
-            renderizarProdutos();
-            document.getElementById('modal').style.display = 'none';
-        }
-    }
-
-    async function baixarCupomSAT() {
+    // --- IMPRESSÃO ---
+    window.baixarCupomSAT = async function() {
         if (carrinho.length === 0) return alert("Carrinho vazio!");
         const btn = document.querySelector('.btn-print');
         const txtOriginal = btn.innerHTML;
@@ -277,8 +292,6 @@
             const qtd = contagem[item.id];
             const valorTotalItem = item.preco * qtd;
             total += valorTotalItem;
-
-            // Layout 55mm Otimizado
             listaCupom.innerHTML += `
                 <div class="item-row">
                     <div class="item-desc">${index+1}. ${item.nome}</div>
@@ -291,50 +304,29 @@
 
         document.getElementById('cupom-total-final').innerText = total.toFixed(2);
         document.getElementById('cupom-pagamento').innerText = total.toFixed(2);
-        
         const agora = new Date();
         document.getElementById('data-hora').innerText = agora.toLocaleString('pt-BR');
         document.getElementById('num-extrato').innerText = Math.floor(Math.random() * 9999);
 
-        // Barcode calibrado para 55mm
-        JsBarcode("#barcode", "35220412345678901234", {
-            format: "CODE128",
-            displayValue: false,
-            height: 70,  
-            width: 3,    
-            margin: 0
-        });
-
-        // QR Code
+        JsBarcode("#barcode", "35220412345678901234", { format: "CODE128", displayValue: false, height: 70, width: 3, margin: 0 });
         document.getElementById("qrcode-container").innerHTML = "";
-        new QRCode(document.getElementById("qrcode-container"), {
-            text: "https://fazenda.gov.br",
-            width: 160,
-            height: 160,
-            correctLevel : QRCode.CorrectLevel.L
-        });
+        new QRCode(document.getElementById("qrcode-container"), { text: "https://fazenda.gov.br", width: 160, height: 160, correctLevel : QRCode.CorrectLevel.L });
 
         try {
             const cupomEl = document.getElementById('cupom-fiscal');
-            // Scale 2 garante nitidez (384px * 2 = 768px de largura real na imagem)
             const canvas = await html2canvas(cupomEl, { scale: 2, backgroundColor: "#ffffff" });
-            
             const link = document.createElement('a');
             link.download = `SAT-55mm-${Date.now()}.jpg`;
             link.href = canvas.toDataURL('image/jpeg', 0.95);
             document.body.appendChild(link);
             link.click();
             document.body.removeChild(link);
-            
         } catch (e) {
             alert("Erro: " + e);
         } finally {
             btn.innerHTML = txtOriginal;
         }
     }
-
-    init();
 </script>
-
 </body>
 </html>
