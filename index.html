@@ -16,14 +16,19 @@
         .container { display: flex; flex-wrap: wrap; padding: 10px; gap: 10px; justify-content: center; }
         .products-area { flex: 2; min-width: 300px; max-width: 600px; }
         .product-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); gap: 10px; }
-        .card { background: white; padding: 15px; border-radius: 8px; text-align: center; cursor: pointer; border-bottom: 3px solid #b2bec3; position: relative;}
+        
+        /* CARD DO PRODUTO */
+        .card { background: white; padding: 25px 10px 15px 10px; border-radius: 8px; text-align: center; cursor: pointer; border-bottom: 3px solid #b2bec3; position: relative;}
         .card:active { transform: scale(0.98); border-bottom: 1px solid #b2bec3; }
         .card-name { font-size: 0.9rem; margin-bottom: 5px; height: 32px; overflow: hidden; display: flex; align-items: center; justify-content: center; }
         .price { font-weight: bold; color: #2d3436; font-size: 1.1rem; }
         
-        /* Botão de excluir */
-        .btn-delete-prod { position: absolute; top:0; right:0; background:red; color:white; font-size:12px; padding:5px 8px; border-radius:0 8px 0 5px; font-weight:bold;}
+        /* BOTÕES DE AÇÃO NO CARD */
+        .btn-card-action { position: absolute; top:0; font-size:12px; padding:6px 10px; font-weight:bold; color:white; z-index: 10; }
+        .btn-delete-prod { right:0; background:#ff4757; border-radius:0 8px 0 10px; }
+        .btn-edit-prod { left:0; background:#3742fa; border-radius:8px 0 10px 0; }
         
+        /* ÁREA CARRINHO */
         .cart-area { flex: 1; min-width: 300px; background: white; padding: 15px; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
         .total { font-size: 1.8rem; font-weight: bold; margin: 15px 0; text-align: right; color: #2d3436; border-top: 2px dashed #b2bec3; padding-top: 10px;}
         
@@ -53,6 +58,7 @@
         #barcode-container { margin: 20px 0; text-align: center; }
         #qrcode-container { display: flex; justify-content: center; margin-top: 15px; padding: 10px; background: white; }
         
+        /* MODAL */
         #modal { display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:1000; align-items:center; justify-content:center; }
         .modal-box { background:white; padding:20px; border-radius:10px; width:90%; max-width:320px; }
         .input-field { width:90%; padding:15px; margin:8px 0; border:1px solid #ddd; border-radius:6px; font-size: 1.1rem; }
@@ -66,7 +72,7 @@
 
 <div class="container">
     <div class="products-area">
-        <button class="btn-add" onclick="abrirModal()">+ Novo Produto</button>
+        <button class="btn-add" onclick="abrirModalCadastro()">+ Novo Produto</button>
         <div id="loading-msg" style="text-align:center; margin-top:20px;">Conectando ao banco...</div>
         <div id="grid-produtos" class="product-grid"></div>
     </div>
@@ -105,12 +111,9 @@
         </div>
         <div class="dashed-line"></div>
         
-        <div class="c-center c-text-sm">SAT No. <span id="sat-dinamico">900012345</span></div>
+        <div class="c-center c-text-sm">SAT No. <span id="sat-dinamico">9000</span></div>
         <div class="c-center c-text-sm" id="data-hora"></div>
-        
-        <div class="c-center c-bold" style="margin-top:10px; font-size:16px; letter-spacing:0px;" id="chave-acesso">
-            3522 0411 1111 1111 1111<br>5900 0666 0666 1234 5678
-        </div>
+        <div class="c-center c-bold" style="margin-top:10px; font-size:16px; letter-spacing:0px;" id="chave-acesso">...</div>
         <div id="barcode-container"><svg id="barcode"></svg></div>
         <div id="qrcode-container"></div>
         <div class="c-center c-text-md" style="margin-top:10px;">OBRIGADO!</div>
@@ -119,7 +122,7 @@
 
 <div id="modal">
     <div class="modal-box">
-        <h3>Cadastrar</h3>
+        <h3 id="modal-titulo">Cadastrar</h3>
         <input type="text" id="novo-nome" class="input-field" placeholder="Nome">
         <input type="number" id="novo-preco" class="input-field" placeholder="Preço">
         <div class="loader" id="loader-save"></div>
@@ -130,10 +133,10 @@
 
 <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-    import { getFirestore, collection, addDoc, onSnapshot, deleteDoc, doc } 
+    import { getFirestore, collection, addDoc, updateDoc, deleteDoc, onSnapshot, doc } 
     from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
-    // --- SUA CONFIGURAÇÃO (Já inserida) ---
+    // --- CONFIGURAÇÃO FIREBASE (JÁ INCLUSA) ---
     const firebaseConfig = {
       apiKey: "AIzaSyCrHEe0G0ldEMVINOXfJ8Z7AQ7rEaW4T-w",
       authDomain: "pdv-loja-164be.firebaseapp.com",
@@ -148,8 +151,9 @@
 
     let carrinho = [];
     let produtos = [];
+    let produtoEmEdicaoId = null; // Controla se estamos editando ou criando
 
-    // --- DADOS DA LOJA (MEMORIZADOS) ---
+    // --- DADOS DA LOJA ---
     const CONFIG = {
         nome: "RK ACESSÓRIOS",
         endereco: "Rua Capitão João Manuel, 174",
@@ -169,11 +173,33 @@
         document.getElementById('loading-msg').style.display = 'none';
         renderizarProdutos();
     }, (error) => {
-        alert("Erro ao conectar: " + error.message);
-        document.getElementById('loading-msg').innerText = "Erro de Conexão";
+        alert("Erro Conexão: " + error.message);
     });
 
-    // --- 2. SALVAR ---
+    // --- 2. PREPARAR MODAL ---
+    window.abrirModalCadastro = function() {
+        produtoEmEdicaoId = null; // Modo Criar
+        document.getElementById('modal-titulo').innerText = "Novo Produto";
+        document.getElementById('btn-save').innerText = "CADASTRAR";
+        document.getElementById('novo-nome').value = "";
+        document.getElementById('novo-preco').value = "";
+        document.getElementById('modal').style.display = 'flex';
+    }
+
+    window.abrirModalEdicao = function(id, event) {
+        event.stopPropagation(); // Não adiciona ao carrinho
+        const prod = produtos.find(p => p.id === id);
+        if(prod) {
+            produtoEmEdicaoId = id; // Modo Editar
+            document.getElementById('modal-titulo').innerText = "Editar Produto";
+            document.getElementById('btn-save').innerText = "ATUALIZAR PREÇO";
+            document.getElementById('novo-nome').value = prod.nome;
+            document.getElementById('novo-preco').value = prod.preco;
+            document.getElementById('modal').style.display = 'flex';
+        }
+    }
+
+    // --- 3. SALVAR (CRIAR OU ATUALIZAR) ---
     window.salvarProdutoFirebase = async function() {
         const nome = document.getElementById('novo-nome').value.toUpperCase();
         const preco = parseFloat(document.getElementById('novo-preco').value);
@@ -184,16 +210,26 @@
             try {
                 btn.style.display = 'none';
                 loader.style.display = 'block';
-                await addDoc(collection(db, "produtos"), {
-                    nome: nome,
-                    preco: preco,
-                    data: Date.now()
-                });
+
+                if(produtoEmEdicaoId) {
+                    // ATUALIZAR EXISTENTE
+                    const produtoRef = doc(db, "produtos", produtoEmEdicaoId);
+                    await updateDoc(produtoRef, {
+                        nome: nome,
+                        preco: preco
+                    });
+                } else {
+                    // CRIAR NOVO
+                    await addDoc(collection(db, "produtos"), {
+                        nome: nome,
+                        preco: preco,
+                        data: Date.now()
+                    });
+                }
+
                 document.getElementById('modal').style.display = 'none';
-                document.getElementById('novo-nome').value = '';
-                document.getElementById('novo-preco').value = '';
             } catch (e) {
-                alert("Erro ao salvar: " + e.message);
+                alert("Erro: " + e.message);
             } finally {
                 btn.style.display = 'block';
                 loader.style.display = 'none';
@@ -203,7 +239,7 @@
         }
     }
 
-    // --- 3. EXCLUIR ---
+    // --- 4. EXCLUIR ---
     window.excluirProduto = async function(id, event) {
         event.stopPropagation();
         if(confirm("Deseja apagar este produto?")) {
@@ -222,7 +258,8 @@
         produtos.forEach(p => {
             grid.innerHTML += `
                 <div class="card" onclick="add('${p.id}')">
-                    <div class="btn-delete-prod" onclick="excluirProduto('${p.id}', event)">X</div>
+                    <div class="btn-card-action btn-edit-prod" onclick="abrirModalEdicao('${p.id}', event)">✏️</div>
+                    <div class="btn-card-action btn-delete-prod" onclick="excluirProduto('${p.id}', event)">X</div>
                     <div class="card-name"><b>${p.nome}</b></div>
                     <div class="price">R$ ${p.preco.toFixed(2)}</div>
                 </div>`;
@@ -257,9 +294,8 @@
     }
 
     window.limparCarrinho = function() { carrinho = []; atualizarCarrinho(); }
-    window.abrirModal = function() { document.getElementById('modal').style.display = 'flex'; }
     
-    // --- FUNÇÃO DE IMPRESSÃO (COM NÚMEROS DINÂMICOS) ---
+    // --- FUNÇÃO DE IMPRESSÃO (DINÂMICA) ---
     window.baixarCupomSAT = async function() {
         if (carrinho.length === 0) return alert("Carrinho vazio!");
         const btn = document.querySelector('.btn-print');
@@ -269,7 +305,6 @@
         const listaCupom = document.getElementById('cupom-lista-itens');
         listaCupom.innerHTML = '';
         let total = 0;
-        
         const contagem = {};
         carrinho.forEach(item => { contagem[item.id] = (contagem[item.id] || 0) + 1; });
         const itensUnicos = [...new Set(carrinho)];
@@ -291,32 +326,24 @@
         document.getElementById('cupom-total-final').innerText = total.toFixed(2);
         document.getElementById('cupom-pagamento').innerText = total.toFixed(2);
         
-        // --- GERAÇÃO DE CÓDIGOS DINÂMICOS ---
         const agora = new Date();
         const timestamp = Date.now().toString();
         const randNum = Math.floor(Math.random() * 900000) + 100000;
         
-        // 1. Número do Extrato (Aleatório)
         document.getElementById('num-extrato').innerText = randNum;
-        
-        // 2. Data e Hora
         document.getElementById('data-hora').innerText = agora.toLocaleString('pt-BR');
         
-        // 3. SAT Dinâmico (Baseado no tempo para ser único)
         const satDinamico = "900" + timestamp.slice(-6);
         document.getElementById('sat-dinamico').innerText = satDinamico;
 
-        // 4. Chave de Acesso (Gerar 44 números aleatórios visualmente reais)
         const chaveParte1 = "3522 " + timestamp.slice(0,4) + " " + Math.floor(Math.random()*9999);
         const chaveParte2 = Math.floor(Math.random()*9999) + " " + Math.floor(Math.random()*9999) + " " + Math.floor(Math.random()*9999);
         const chaveParte3 = Math.floor(Math.random()*9999) + " " + Math.floor(Math.random()*9999);
         document.getElementById('chave-acesso').innerHTML = `${chaveParte1} ${chaveParte2}<br>${chaveParte3}`;
 
-        // 5. Código de Barras (Muda a cada venda)
-        const barcodeValue = timestamp + randNum; // Garante que é único
+        const barcodeValue = timestamp + randNum; 
         JsBarcode("#barcode", barcodeValue, { format: "CODE128", displayValue: false, height: 70, width: 3, margin: 0 });
         
-        // 6. QR Code
         document.getElementById("qrcode-container").innerHTML = "";
         new QRCode(document.getElementById("qrcode-container"), { text: "https://rkacessorios.com.br/sat/" + barcodeValue, width: 160, height: 160, correctLevel : QRCode.CorrectLevel.L });
 
